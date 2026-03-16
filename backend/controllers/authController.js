@@ -30,6 +30,12 @@ const registerUser = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("registerUser error:", error);
+
+    if (error.code === 11000) {
+      return res.status(400).json({ message: "User already exists" });
+    }
+
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -67,6 +73,7 @@ const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("loginUser error:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
