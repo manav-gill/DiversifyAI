@@ -1,17 +1,81 @@
-import { Link } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+import { registerUser } from '../../services/api';
 
 function RegisterPage() {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      await registerUser(formData.name, formData.email, formData.password);
+      navigate('/login');
+    } catch (apiError) {
+      setError(apiError.response?.data?.message || 'Unable to register. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="page-shell flex min-h-screen items-center justify-center bg-[#fffdfa] px-6 text-ink">
       <div className="hover-panel w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-glow">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-emerald-700">Get Started</p>
         <h1 className="mt-2 font-display text-4xl tracking-tight">Create your account</h1>
-        <form className="mt-6 space-y-4">
-          <input className="input-shell" placeholder="Full Name" type="text" />
-          <input className="input-shell" placeholder="Email" type="email" />
-          <input className="input-shell" placeholder="Password" type="password" />
-          <button className="premium-btn w-full rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-white">
-            Register
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+          <input
+            className="input-shell"
+            placeholder="Full Name"
+            type="text"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            required
+          />
+          <input
+            className="input-shell"
+            placeholder="Email"
+            type="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+          />
+          <input
+            className="input-shell"
+            placeholder="Password"
+            type="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+          />
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
+          <button
+            className="premium-btn w-full rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-white disabled:cursor-not-allowed disabled:opacity-60"
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? 'Registering...' : 'Register'}
           </button>
         </form>
         <p className="mt-5 text-sm text-slate-600">
