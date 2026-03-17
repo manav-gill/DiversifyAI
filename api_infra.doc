@@ -1,0 +1,270 @@
+1. Authentication APIs
+Register User
+
+Endpoint
+
+POST /api/auth/register
+
+Request Body
+
+{
+ "name": "Madhav Gill",
+ "email": "madhav@gmail.com",
+ "password": "123456"
+}
+
+Response
+
+{
+ "message": "User registered successfully"
+}
+Login User
+
+Endpoint
+
+POST /api/auth/login
+
+Request Body
+
+{
+ "email": "madhav@gmail.com",
+ "password": "123456"
+}
+
+Response
+
+{
+ "token": "jwt_token_here",
+ "user": {
+   "id": "12345",
+   "name": "Madhav Gill"
+ }
+}
+
+Frontend must store:
+
+token
+
+Used for authenticated requests.
+
+2. Portfolio APIs
+
+These APIs manage user investments.
+
+Add Stock to Portfolio
+
+Endpoint
+
+POST /api/portfolio/add
+
+Headers
+
+Authorization: Bearer <token>
+
+Request Body
+
+{
+ "stockSymbol": "RELIANCE",
+ "quantity": 10,
+ "buyPrice": 2500
+}
+
+Response
+
+{
+ "message": "Stock added successfully"
+}
+Get User Portfolio
+
+Endpoint
+
+GET /api/portfolio
+
+Headers
+
+Authorization: Bearer <token>
+
+Response
+
+{
+ "totalInvestment": 25000,
+ "totalStocks": 3,
+ "stocks": [
+   {
+     "symbol": "RELIANCE",
+     "quantity": 10,
+     "sector": "Energy",
+     "currentValue": 12000
+   },
+   {
+     "symbol": "TCS",
+     "quantity": 5,
+     "sector": "IT",
+     "currentValue": 8000
+   }
+ ]
+}
+
+Frontend uses this data for:
+
+portfolio table
+
+portfolio summary card
+
+3. Sector Allocation API
+
+Used for portfolio diversification visualization.
+
+Get Sector Distribution
+
+Endpoint
+
+GET /api/portfolio/sectors
+
+Headers
+
+Authorization: Bearer <token>
+
+Response
+
+{
+ "Banking": 35,
+ "IT": 25,
+ "Energy": 20,
+ "Pharma": 10,
+ "FMCG": 10
+}
+
+Frontend uses this response for:
+
+sector pie chart
+
+diversification visualization
+
+4. Portfolio Analysis API
+
+This API triggers AI analysis.
+
+Analyze Portfolio
+
+Endpoint
+
+POST /api/analysis/portfolio
+
+Headers
+
+Authorization: Bearer <token>
+
+Response
+
+{
+ "diversificationScore": 68,
+ "riskScore": 55,
+ "portfolioHealth": 72,
+ "recommendations": [
+   "Reduce banking exposure",
+   "Add pharmaceutical stocks",
+   "Consider index ETFs for diversification"
+ ]
+}
+
+Frontend displays:
+
+risk score
+
+diversification score
+
+AI recommendation panel
+
+5. Advisor APIs
+
+These APIs allow users to connect with advisors.
+
+Get Advisors
+
+Endpoint
+
+GET /api/advisors
+
+Response
+
+[
+ {
+   "id": "1",
+   "name": "Rahul Sharma",
+   "experience": "10 years",
+   "rating": 4.8,
+   "specialization": "Equity Investment"
+ },
+ {
+   "id": "2",
+   "name": "Neha Gupta",
+   "experience": "8 years",
+   "rating": 4.6,
+   "specialization": "Portfolio Management"
+ }
+]
+
+Frontend shows advisor list.
+
+Book Advisor Consultation
+
+Endpoint
+
+POST /api/advisor/book
+
+Headers
+
+Authorization: Bearer <token>
+
+Request Body
+
+{
+ "advisorId": "1",
+ "date": "2026-04-10",
+ "time": "15:00"
+}
+
+Response
+
+{
+ "message": "Consultation booked successfully"
+}
+
+Frontend shows booking confirmation.
+
+6. API Authentication Flow
+
+All protected APIs require:
+
+Authorization: Bearer <JWT_TOKEN>
+
+Example request header:
+
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
+7. API Groups Overview
+API Group	Purpose
+Auth APIs	Login & registration
+Portfolio APIs	Manage investments
+Sector APIs	Portfolio breakdown
+Analysis APIs	AI portfolio insights
+Advisor APIs	Financial consultation
+8. API Communication Flow
+
+Frontend communication pattern:
+
+User Action
+     ↓
+React Component
+     ↓
+Axios API Call
+     ↓
+Backend API
+     ↓
+JSON Response
+     ↓
+Update UI
+
+
+
+understand this project then we will move further

@@ -82,4 +82,10 @@ export const addStockToPortfolio = async (stockSymbol, quantity, buyPrice) => {
   return response.data;
 };
 
+// Analysis APIs
+export const analyzePortfolio = async () => {
+  const response = await api.post('/analysis/portfolio');
+  return response.data;
+};
+
 export default api;
