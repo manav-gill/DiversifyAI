@@ -68,17 +68,29 @@ export const getStoredUser = () => {
 };
 
 // Portfolio APIs
+export const searchIndianStocks = async (query) => {
+  const response = await api.get(`/portfolio/search?q=${query}`);
+  return response.data;
+};
+
 export const getPortfolio = async () => {
   const response = await api.get('/portfolio');
   return response.data;
 };
 
-export const addStockToPortfolio = async (stockSymbol, quantity, buyPrice) => {
+export const addStockToPortfolio = async (stockSymbol, quantity, buyPrice, sector) => {
   const response = await api.post('/portfolio/add', {
     stockSymbol,
     quantity,
     buyPrice,
+    sector
   });
+  return response.data;
+};
+
+// Sector APIs
+export const getSectorDistribution = async () => {
+  const response = await api.get('/portfolio/sectors');
   return response.data;
 };
 

@@ -7,6 +7,7 @@ const authRoutes = require("./routes/authRoutes");
 const healthRoutes = require("./routes/healthRoutes");
 const portfolioRoutes = require("./routes/portfolioRoutes");
 const analysisRoutes = require("./routes/analysisRoutes");
+const { startDailyPriceUpdate } = require("./jobs/cronJobs");
 
 dotenv.config();
 
@@ -41,6 +42,10 @@ app.use("/api", healthRoutes);
 const startServer = async () => {
   try {
     await connectDB();
+    
+    // Start cron jobs
+    startDailyPriceUpdate();
+
     app.listen(PORT, () => {
       console.log("Server running on port " + PORT);
     });

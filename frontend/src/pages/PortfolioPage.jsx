@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import AppLayout from '../components/AppLayout';
-import { getPortfolio, addStockToPortfolio } from '../../services/api';
+import { getPortfolio, addStockToPortfolio, searchIndianStocks } from '../../services/api';
 
 function PortfolioPage() {
   const [portfolioData, setPortfolioData] = useState({ stocks: [], totalInvestment: 0 });
   const [isLoading, setIsLoading] = useState(true);
   
-  const [formData, setFormData] = useState({ symbol: '', quantity: '', buyPrice: '' });
+  const [formData, setFormData] = useState({ symbol: '', sector: '', quantity: '', buyPrice: '' });
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -26,10 +28,40 @@ function PortfolioPage() {
     fetchPortfolio();
   }, []);
 
+  const [suggestions, setSuggestions] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(async () => {
+      if (searchQuery.length > 1) {
+        setIsSearching(true);
+        try {
+          const results = await searchIndianStocks(searchQuery);
+          setSuggestions(results.slice(0, 6)); // show top 6 Yahoo results
+        } catch (err) {
+          console.error('Yahoo search failed', err);
+        } finally {
+          setIsSearching(false);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  const selectStock = (stock) => {
+    setFormData({ ...formData, symbol: stock.symbol, sector: stock.sector });
+    setSearchQuery(stock.symbol);
+    setShowSuggestions(false);
+    setErrorMsg('');
+  };
+
   const handleAddStock = async (e) => {
     e.preventDefault();
     if (!formData.symbol || !formData.quantity || !formData.buyPrice) {
-      setErrorMsg('Please fill all fields.');
+      setErrorMsg('Please search and select a valid stock and fill all fields.');
       return;
     }
 
@@ -39,9 +71,11 @@ function PortfolioPage() {
       await addStockToPortfolio(
         formData.symbol, 
         Number(formData.quantity), 
-        Number(formData.buyPrice)
+        Number(formData.buyPrice),
+        formData.sector
       );
-      setFormData({ symbol: '', quantity: '', buyPrice: '' });
+      setFormData({ symbol: '', sector: '', quantity: '', buyPrice: '' });
+      setSearchQuery('');
       await fetchPortfolio(); // Refresh table
     } catch (err) {
       setErrorMsg(err.response?.data?.message || 'Failed to add stock');
@@ -63,13 +97,49 @@ function PortfolioPage() {
         <h2 className="font-display text-2xl tracking-tight">Add New Holding</h2>
         {errorMsg && <div className="mt-4 text-sm text-red-500 font-semibold">{errorMsg}</div>}
         <form className="mt-5 grid gap-4 md:grid-cols-4" onSubmit={handleAddStock}>
-          <input 
-            className="input-shell" 
-            placeholder="Stock Symbol" 
-            name="symbol"
-            value={formData.symbol}
-            onChange={handleInputChange}
-          />
+          
+          {/* Autocomplete Input Field */}
+          <div className="relative col-span-1">
+            <input 
+              className="input-shell w-full" 
+              placeholder="Search Stock (e.g. RELI)" 
+              value={searchQuery}
+              onChange={(e) => {
+                 setSearchQuery(e.target.value);
+                 setShowSuggestions(true);
+                 setFormData({ ...formData, symbol: '' }); // reset firm selection validation until explicitly clicked
+              }}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            />
+            {showSuggestions && searchQuery && (
+              <div className="absolute top-full z-50 mt-2 w-full min-w-[200px] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+                {isSearching ? (
+                  <div className="p-3 text-sm text-slate-500 text-center flex items-center justify-center space-x-2">
+                    <svg className="animate-spin h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Searching Yahoo...</span>
+                  </div>
+                ) : suggestions.length > 0 ? (
+                  suggestions.map((stock) => (
+                    <div 
+                      key={stock.symbol}
+                      className="cursor-pointer border-b border-slate-100 p-3 transition-colors hover:bg-emerald-50 text-left last:border-0"
+                      onMouseDown={() => selectStock(stock)}
+                    >
+                      <div className="font-bold text-slate-800">{stock.symbol}</div>
+                      <div className="text-xs text-slate-500 truncate">{stock.name} • {stock.sector}</div>
+                    </div>
+                  ))
+                ) : (
+                  searchQuery.length > 1 && <div className="p-3 text-sm text-slate-500 text-center">No precise matches found on NSE/BSE.</div>
+                )}
+              </div>
+            )}
+          </div>
+
           <input 
             type="number"
             className="input-shell" 
@@ -92,7 +162,7 @@ function PortfolioPage() {
           <button 
             type="submit" 
             disabled={isSubmitting}
-            className={`premium-btn rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-white ${isSubmitting ? 'opacity-50' : ''}`}
+            className={`premium-btn rounded-xl bg-emerald-500 px-4 py-3 text-xs font-bold uppercase tracking-[0.14em] text-white transition hover:bg-emerald-600 ${isSubmitting ? 'opacity-50' : ''}`}
           >
             {isSubmitting ? 'Adding...' : 'Add Stock'}
           </button>
