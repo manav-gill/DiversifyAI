@@ -1,270 +1,510 @@
-1. Authentication APIs
-Register User
+PortfolioPilot / DiversifyAI - API Infrastructure (Current Implementation)
 
-Endpoint
+Base URL
+- Default: http://localhost:5000/api
+- Frontend reads from VITE_API_BASE_URL and falls back to http://localhost:5000/api.
+
+Authentication and Authorization
+- JWT Bearer token is required for protected routes.
+- Header format: Authorization: Bearer <token>
+- Roles in system: client, advisor, admin
+- Role checks:
+	- Admin-only: creating advisor accounts
+	- Advisor-only: earnings dashboard, advisor room list
+	- Client-only: client consultation history
+
+Session and Payment Rules
+- Consultation access window: 24 hours after successful payment verification.
+- Clients need an active paid session to create/send chat messages.
+- Advisors can access chat without payment middleware checks.
+- Users can still read historical chat messages after expiry if they are chat participants.
+
+--------------------------------------------------------------------------------
+1) Health API
+--------------------------------------------------------------------------------
+
+GET /api/health
+- Auth: Public
+- Purpose: Basic API liveness check.
+- Response:
+	{
+		"status": "API running"
+	}
+
+--------------------------------------------------------------------------------
+2) Auth APIs
+--------------------------------------------------------------------------------
 
 POST /api/auth/register
-
-Request Body
-
-{
- "name": "Madhav Gill",
- "email": "madhav@gmail.com",
- "password": "123456"
-}
-
-Response
-
-{
- "message": "User registered successfully"
-}
-Login User
-
-Endpoint
+- Auth: Public
+- Purpose: Register a new client account (public signup is client-only).
+- Body:
+	{
+		"name": "Madhav Gill",
+		"email": "madhav@gmail.com",
+		"password": "123456"
+	}
+- Behavior:
+	- Rejects missing fields.
+	- Rejects duplicate email.
+	- Rejects configured admin email for public signup.
+	- Creates user with role = client.
+- Response:
+	{
+		"token": "jwt_token",
+		"user": {
+			"id": "...",
+			"name": "Madhav Gill",
+			"email": "madhav@gmail.com",
+			"role": "client"
+		}
+	}
 
 POST /api/auth/login
+- Auth: Public
+- Purpose: Login for client/advisor/admin.
+- Body:
+	{
+		"email": "madhav@gmail.com",
+		"password": "123456"
+	}
+- Behavior:
+	- For configured ADMIN_EMAIL + ADMIN_PASSWORD, returns admin session.
+	- Auto-creates admin user record if missing.
+	- Ensures admin role on existing admin user.
+	- For normal users, validates hashed password.
+- Response:
+	{
+		"token": "jwt_token",
+		"user": {
+			"id": "...",
+			"name": "...",
+			"email": "...",
+			"role": "client|advisor|admin"
+		}
+	}
 
-Request Body
+GET /api/auth/advisors
+- Auth: Public
+- Purpose: List advisor users for advisor discovery pages.
+- Response:
+	{
+		"advisors": [
+			{
+				"_id": "...",
+				"name": "Advisor Name",
+				"email": "advisor@example.com",
+				"createdAt": "..."
+			}
+		]
+	}
 
-{
- "email": "madhav@gmail.com",
- "password": "123456"
-}
+POST /api/auth/admin/create-advisor
+- Auth: Protected + admin role required
+- Purpose: Admin-only onboarding of advisor accounts.
+- Body:
+	{
+		"name": "Advisor Name",
+		"email": "advisor@example.com",
+		"password": "strongpass"
+	}
+- Behavior:
+	- Only configured platform admin can call successfully.
+	- Rejects missing fields, duplicate email, weak password, admin email reuse.
+	- Creates user with role = advisor.
+- Response:
+	{
+		"message": "Advisor account created successfully",
+		"advisor": {
+			"id": "...",
+			"name": "Advisor Name",
+			"email": "advisor@example.com",
+			"role": "advisor"
+		}
+	}
 
-Response
+--------------------------------------------------------------------------------
+3) Portfolio APIs
+--------------------------------------------------------------------------------
 
-{
- "token": "jwt_token_here",
- "user": {
-   "id": "12345",
-   "name": "Madhav Gill"
- }
-}
-
-Frontend must store:
-
-token
-
-Used for authenticated requests.
-
-2. Portfolio APIs
-
-These APIs manage user investments.
-
-Add Stock to Portfolio
-
-Endpoint
-
-POST /api/portfolio/add
-
-Headers
-
-Authorization: Bearer <token>
-
-Request Body
-
-{
- "stockSymbol": "RELIANCE",
- "quantity": 10,
- "buyPrice": 2500
-}
-
-Response
-
-{
- "message": "Stock added successfully"
-}
-Get User Portfolio
-
-Endpoint
+GET /api/portfolio/search?q=<query>
+- Auth: Protected
+- Purpose: Search Indian stocks through Yahoo Finance.
+- Behavior:
+	- Filters NSE/BSE symbols.
+	- Normalizes symbol display and includes basic metadata.
+- Response (array):
+	[
+		{
+			"symbol": "RELIANCE",
+			"name": "Reliance Industries",
+			"fullSymbol": "RELIANCE.NS",
+			"type": "EQUITY",
+			"sector": "Energy"
+		}
+	]
 
 GET /api/portfolio
+- Auth: Protected
+- Purpose: Return user portfolio summary + holdings.
+- Query params:
+	- forceRefresh=true (optional): forces live price refresh now.
+- Behavior:
+	- Refreshes live prices at most once per 24h by default.
+	- Stores and returns pricesLastUpdatedAt.
+	- Returns empty-safe payload for users with no holdings.
+- Response:
+	{
+		"totalInvestment": 25000,
+		"totalStocks": 3,
+		"stocks": [
+			{
+				"symbol": "RELIANCE",
+				"quantity": 10,
+				"sector": "Energy",
+				"currentValue": 12000,
+				"buyPrice": 2500
+			}
+		],
+		"pricesLastUpdatedAt": "2026-03-19T00:00:00.000Z"
+	}
 
-Headers
+POST /api/portfolio/add
+- Auth: Protected
+- Purpose: Add a holding to the portfolio.
+- Body:
+	{
+		"stockSymbol": "RELIANCE",
+		"quantity": 10,
+		"buyPrice": 2500,
+		"sector": "Energy"
+	}
+- Behavior:
+	- Requires stockSymbol, quantity, buyPrice.
+	- Attempts Yahoo quote for live pricing and sector enrichment.
+	- Appends new stock entry (no merge/upsert logic).
+- Response:
+	{
+		"message": "Stock added",
+		"stock": {
+			"symbol": "RELIANCE",
+			"quantity": 10,
+			"buyPrice": 2500,
+			"sector": "Energy",
+			"currentValue": 25100
+		}
+	}
 
-Authorization: Bearer <token>
-
-Response
-
-{
- "totalInvestment": 25000,
- "totalStocks": 3,
- "stocks": [
-   {
-     "symbol": "RELIANCE",
-     "quantity": 10,
-     "sector": "Energy",
-     "currentValue": 12000
-   },
-   {
-     "symbol": "TCS",
-     "quantity": 5,
-     "sector": "IT",
-     "currentValue": 8000
-   }
- ]
-}
-
-Frontend uses this data for:
-
-portfolio table
-
-portfolio summary card
-
-3. Sector Allocation API
-
-Used for portfolio diversification visualization.
-
-Get Sector Distribution
-
-Endpoint
+DELETE /api/portfolio/remove/:symbol
+- Auth: Protected
+- Purpose: Remove a holding by symbol.
+- Behavior:
+	- Symbol comparison is uppercase.
+	- Updates pricesLastUpdatedAt.
+- Response:
+	{
+		"message": "Stock removed successfully"
+	}
 
 GET /api/portfolio/sectors
+- Auth: Protected
+- Purpose: Return sector allocation percentages.
+- Behavior:
+	- Uses currentValue if present, else buyPrice * quantity.
+	- Rounds percentages and sorts descending by allocation.
+- Response:
+	{
+		"Banking": 35,
+		"IT": 25,
+		"Energy": 20,
+		"Pharma": 10,
+		"FMCG": 10
+	}
 
-Headers
-
-Authorization: Bearer <token>
-
-Response
-
-{
- "Banking": 35,
- "IT": 25,
- "Energy": 20,
- "Pharma": 10,
- "FMCG": 10
-}
-
-Frontend uses this response for:
-
-sector pie chart
-
-diversification visualization
-
-4. Portfolio Analysis API
-
-This API triggers AI analysis.
-
-Analyze Portfolio
-
-Endpoint
+--------------------------------------------------------------------------------
+4) Analysis APIs
+--------------------------------------------------------------------------------
 
 POST /api/analysis/portfolio
+- Auth: Protected
+- Purpose: Generate AI portfolio analysis (or return daily cached result).
+- Behavior:
+	- One snapshot per user per UTC day (cache first).
+	- If portfolio empty: returns zero scores and guidance text.
+	- Uses MegaLLM OpenAI-compatible endpoint.
+	- Persists snapshot with generatedAt and isCached marker.
+- Response:
+	{
+		"diversificationScore": 68,
+		"riskScore": 55,
+		"portfolioHealth": 72,
+		"marketCapMix": {
+			"Large Cap": 60,
+			"Mid Cap": 25,
+			"Small Cap": 15
+		},
+		"recommendations": ["..."],
+		"generatedAt": "...",
+		"isCached": false
+	}
 
-Headers
+GET /api/analysis/latest
+- Auth: Protected
+- Purpose: Fetch latest stored analysis without invoking LLM.
+- Behavior:
+	- Returns zeroed safe response if no snapshot exists.
+	- Always marks response as cached.
+- Response:
+	{
+		"diversificationScore": 68,
+		"riskScore": 55,
+		"portfolioHealth": 72,
+		"marketCapMix": {
+			"Large Cap": 60,
+			"Mid Cap": 25,
+			"Small Cap": 15
+		},
+		"recommendations": ["..."],
+		"generatedAt": "...",
+		"isCached": true
+	}
 
-Authorization: Bearer <token>
+--------------------------------------------------------------------------------
+5) Payment APIs
+--------------------------------------------------------------------------------
 
-Response
+POST /api/payment/create-order
+- Auth: Protected
+- Purpose: Create Razorpay order for advisor consultation.
+- Body:
+	{
+		"amount": 499,
+		"advisorId": "<advisorObjectId>"
+	}
+- Behavior:
+	- Validates amount > 0 and advisorId format.
+	- Creates local Payment record with status = created.
+- Response:
+	{
+		"message": "Order created successfully",
+		"order": {
+			"id": "order_xxx",
+			"amount": 49900,
+			"currency": "INR",
+			"receipt": "receipt_xxx"
+		},
+		"paymentId": "<paymentObjectId>"
+	}
 
-{
- "diversificationScore": 68,
- "riskScore": 55,
- "portfolioHealth": 72,
- "recommendations": [
-   "Reduce banking exposure",
-   "Add pharmaceutical stocks",
-   "Consider index ETFs for diversification"
- ]
-}
+POST /api/payment/verify
+- Auth: Protected
+- Purpose: Verify Razorpay signature and unlock consultation session.
+- Body:
+	{
+		"razorpay_order_id": "order_xxx",
+		"razorpay_payment_id": "pay_xxx",
+		"razorpay_signature": "signature_xxx",
+		"advisorId": "<advisorObjectId>"
+	}
+- Behavior:
+	- Verifies signature.
+	- On success:
+		- updates payment status to paid
+		- sets paidAt and accessExpiresAt (+24h)
+		- creates/fetches chat room
+		- updates room sessionUnlockedAt/sessionExpiresAt
+		- auto-sends portfolio snapshot message to chat as:
+			- messageType = portfolio_snapshot
+			- payload = structured holdings/sector snapshot
+	- On failure: marks payment failed.
+- Response:
+	{
+		"message": "Payment verified successfully",
+		"status": "paid",
+		"paymentId": "...",
+		"chatId": "...",
+		"accessExpiresAt": "..."
+	}
 
-Frontend displays:
+GET /api/payment/advisor/earnings
+- Auth: Protected + advisor role required
+- Purpose: Advisor earnings dashboard data.
+- Behavior:
+	- Aggregates total earnings, paid consultations, unique clients.
+	- Returns recent paid payments with client details.
+- Response:
+	{
+		"stats": {
+			"totalEarnings": 24500,
+			"paidConsultations": 18,
+			"uniqueClients": 12
+		},
+		"recentPayments": [
+			{
+				"amount": 499,
+				"currency": "INR",
+				"createdAt": "...",
+				"user": {
+					"name": "Client Name",
+					"email": "client@example.com"
+				}
+			}
+		]
+	}
 
-risk score
+--------------------------------------------------------------------------------
+6) Chat APIs
+--------------------------------------------------------------------------------
 
-diversification score
+POST /api/chat/create-room
+- Auth: Protected + active payment access check for clients
+- Purpose: Ensure chat room exists for client-advisor pair.
+- Body:
+	{
+		"advisorId": "<advisorObjectId>"
+	}
+- Behavior:
+	- Only clients can create consultation rooms.
+	- Validates advisor exists and has advisor role.
+	- Returns existing room if already created.
+- Response:
+	{
+		"chatId": "<chatRoomId>",
+		"message": "Chat room ready"
+	}
 
-AI recommendation panel
+POST /api/chat/send
+- Auth: Protected + payment access middleware
+- Purpose: Send message to chat.
+- Body:
+	{
+		"chatId": "<chatRoomId>",
+		"message": "Hello advisor"
+	}
+- Behavior:
+	- Sender must be participant in chat.
+	- Clients are blocked if session expired.
+	- Advisors can continue replying.
+- Response:
+	{
+		"message": "Message sent"
+	}
 
-5. Advisor APIs
+GET /api/chat/messages/:chatId
+- Auth: Protected
+- Purpose: Fetch ordered message history for a chat.
+- Behavior:
+	- User must be chat participant (client or advisor).
+	- Returns full message docs sorted by createdAt asc.
+	- Includes sender (name, email, role).
+	- Includes messageType and payload fields for rich UI rendering.
+- Response:
+	[
+		{
+			"_id": "...",
+			"chat": "...",
+			"sender": {
+				"_id": "...",
+				"name": "Client",
+				"email": "client@example.com",
+				"role": "client"
+			},
+			"message": "Consultation started: portfolio snapshot shared...",
+			"messageType": "portfolio_snapshot",
+			"payload": {
+				"holdingsCount": 4,
+				"totalInvestment": 1174540,
+				"totalCurrentValue": 1174540,
+				"sectors": [{ "name": "Energy", "allocation": 48 }],
+				"holdings": [{ "symbol": "RELIANCE", "weight": 28 }]
+			},
+			"createdAt": "..."
+		}
+	]
 
-These APIs allow users to connect with advisors.
+GET /api/chat/advisor/rooms
+- Auth: Protected + advisor role required
+- Purpose: Advisor inbox list with last message preview.
+- Response:
+	{
+		"rooms": [
+			{
+				"chatId": "...",
+				"client": {
+					"_id": "...",
+					"name": "Client",
+					"email": "client@example.com"
+				},
+				"createdAt": "...",
+				"lastMessage": {
+					"text": "...",
+					"senderName": "Client",
+					"createdAt": "..."
+				}
+			}
+		]
+	}
 
-Get Advisors
+GET /api/chat/client/rooms
+- Auth: Protected + client role required
+- Purpose: Client consultation history.
+- Response:
+	{
+		"rooms": [
+			{
+				"chatId": "...",
+				"advisor": {
+					"_id": "...",
+					"name": "Advisor",
+					"email": "advisor@example.com"
+				},
+				"createdAt": "...",
+				"accessExpiresAt": "...",
+				"isSessionActive": true,
+				"lastMessage": {
+					"text": "...",
+					"senderName": "Advisor",
+					"createdAt": "..."
+				}
+			}
+		]
+	}
 
-Endpoint
+--------------------------------------------------------------------------------
+7) Frontend API Usage Notes
+--------------------------------------------------------------------------------
 
-GET /api/advisors
+- Frontend stores:
+	- localStorage token key: token
+	- localStorage user key: user
+- Axios request interceptor injects Authorization header automatically when token exists.
+- Chat API client uses /chat base from VITE_API_BASE_URL.
 
-Response
+--------------------------------------------------------------------------------
+8) Environment Variables (Backend)
+--------------------------------------------------------------------------------
 
-[
- {
-   "id": "1",
-   "name": "Rahul Sharma",
-   "experience": "10 years",
-   "rating": 4.8,
-   "specialization": "Equity Investment"
- },
- {
-   "id": "2",
-   "name": "Neha Gupta",
-   "experience": "8 years",
-   "rating": 4.6,
-   "specialization": "Portfolio Management"
- }
-]
+Required for full functionality:
+- PORT
+- FRONTEND_URL
+- MONGO_URI
+- JWT_SECRET
+- ADMIN_NAME
+- ADMIN_EMAIL
+- ADMIN_PASSWORD
+- MEGALLM_API_KEY
+- RAZORPAY_KEY_ID
+- RAZORPAY_KEY_SECRET
 
-Frontend shows advisor list.
+--------------------------------------------------------------------------------
+9) Key Functional Behaviors Summary
+--------------------------------------------------------------------------------
 
-Book Advisor Consultation
-
-Endpoint
-
-POST /api/advisor/book
-
-Headers
-
-Authorization: Bearer <token>
-
-Request Body
-
-{
- "advisorId": "1",
- "date": "2026-04-10",
- "time": "15:00"
-}
-
-Response
-
-{
- "message": "Consultation booked successfully"
-}
-
-Frontend shows booking confirmation.
-
-6. API Authentication Flow
-
-All protected APIs require:
-
-Authorization: Bearer <JWT_TOKEN>
-
-Example request header:
-
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
-7. API Groups Overview
-API Group	Purpose
-Auth APIs	Login & registration
-Portfolio APIs	Manage investments
-Sector APIs	Portfolio breakdown
-Analysis APIs	AI portfolio insights
-Advisor APIs	Financial consultation
-8. API Communication Flow
-
-Frontend communication pattern:
-
-User Action
-     ↓
-React Component
-     ↓
-Axios API Call
-     ↓
-Backend API
-     ↓
-JSON Response
-     ↓
-Update UI
-
-
-
-understand this project then we will move further
+- Public registration is client-only.
+- Advisor onboarding is admin-only.
+- Consultation access requires successful payment and is time-bound to 24 hours.
+- Payment verification automatically initializes consultation chat context.
+- Portfolio snapshot is auto-shared at session start.
+- Chat supports typed messages with rich payload (portfolio_snapshot).
+- AI analysis is cached per day to control repeated LLM cost.
+- Dashboard can rely on latest cached analysis and 24h price refresh metadata.
