@@ -12,10 +12,10 @@ const NavItem = ({ to, icon: Icon, label }) => (
       <>
         {/* Animated Highlight Background */}
         <span
-          className={`absolute inset-0 -z-10 rounded-full transition-all duration-300 ease-out ${
+          className={`absolute inset-0 -z-10 rounded-full transition-all duration-300  ${
             isActive
               ? 'scale-100 bg-white opacity-100 shadow-sm ring-1 ring-slate-900/5'
-              : 'scale-95 bg-white/50 opacity-0 group-hover:scale-100 group-hover:opacity-100'
+              : 'scale-95 bg-white/50  group-hover:scale-100 group-hover:opacity-100'
           }`}
         />
         <Icon
@@ -60,8 +60,8 @@ function AppLayout({ title, subtitle, children }) {
         <div className="hero-orb hero-orb--three absolute right-[16%] top-[18%] h-[14rem] w-[14rem] rounded-full bg-gradient-to-br from-cyan-200/35 to-emerald-200/35 blur-3xl" />
       </div>
 
-      <header className="sticky top-6 z-50 mx-auto w-full max-w-6xl px-4 opacity-0 [animation:slideInDown_800ms_cubic-bezier(0.22,1,0.36,1)_forwards]">
-        <div className="flex items-center justify-between rounded-full border border-white/60 bg-white/40 px-3 pl-6 py-2 shadow-[0_8px_32px_rgba(15,23,42,0.04)] backdrop-blur-xl transition-all duration-500 hover:bg-white/50 hover:shadow-[0_8px_40px_rgba(15,23,42,0.08)]">
+      <header className="sticky top-6 z-50 mx-auto w-full max-w-6xl px-4 [animation:slideInDown_800ms_cubic-bezier(0.22,1,0.36,1)_forwards]">
+        <div className="flex items-center justify-between rounded-full border border-white/60 bg-white/40 px-3 pl-6 py-2 shadow-[0_8px_32px_rgba(15,23,42,0.04)]  transition-all duration-500 hover:bg-white/50 hover:shadow-[0_8px_40px_rgba(15,23,42,0.08)]">
           
           {/* Logo Section */}
           <Link to="/" className="group flex items-center gap-2">
