@@ -1,30 +1,43 @@
 import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, ActivityIndicator } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmitLoading, setIsSubmitLoading] = useState(false);
   const { login } = useContext(AuthContext);
 
   const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter both email and password');
+      return;
+    }
+
     try {
+      console.log("[LoginScreen] Attempting login for:", email);
+      setIsSubmitLoading(true);
       const response = await api.post('/auth/login', { email, password });
+      console.log("[LoginScreen] Login successful");
       login(response.data.token, response.data.user);
     } catch (error) {
+      console.error("[LoginScreen] Login Error:", error);
       Alert.alert('Login Failed', error.response?.data?.message || 'Something went wrong');
+    } finally {
+      setIsSubmitLoading(false);
     }
   };
 
   return (
-    <View className="flex-1 justify-center px-6 bg-white">
-      <Text className="text-3xl font-bold mb-2 text-center text-gray-800">DiversifyAI</Text>
-      <Text className="text-lg mb-8 text-center text-gray-500">Login to your account</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>DiversifyAI</Text>
+      <Text style={styles.subtitle}>Login to your account</Text>
       
       <TextInput
-        className="border border-gray-300 rounded-lg px-4 py-3 mb-4 text-gray-800 bg-gray-50"
+        style={styles.input}
         placeholder="Email"
+        placeholderTextColor="#9ca3af"
         keyboardType="email-address"
         autoCapitalize="none"
         value={email}
@@ -32,23 +45,83 @@ export default function LoginScreen({ navigation }) {
       />
       
       <TextInput
-        className="border border-gray-300 rounded-lg px-4 py-3 mb-6 text-gray-800 bg-gray-50"
+        style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#9ca3af"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
       />
       
       <TouchableOpacity 
-        className="bg-blue-600 rounded-lg py-4 items-center mb-4"
+        style={styles.button}
         onPress={handleLogin}
+        disabled={isSubmitLoading}
       >
-        <Text className="text-white font-bold text-lg">Login</Text>
+        {isSubmitLoading ? (
+            <ActivityIndicator color="#fff" />
+        ) : (
+            <Text style={styles.buttonText}>Login</Text>
+        )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate('Register')} className="py-2">
-        <Text className="text-blue-600 text-center font-semibold">Don't have an account? Register</Text>
+      <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.linkButton}>
+        <Text style={styles.linkText}>Don't have an account? Register</Text>
       </TouchableOpacity>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: '#ffffff'
+  },
+  title: {
+    fontSize: 30,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    textAlign: 'center',
+    color: '#1f2937'
+  },
+  subtitle: {
+    fontSize: 18,
+    marginBottom: 32,
+    textAlign: 'center',
+    color: '#6b7280'
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    color: '#1f2937',
+    backgroundColor: '#f9fafb',
+    fontSize: 16
+  },
+  button: {
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 18
+  },
+  linkButton: {
+    paddingVertical: 8
+  },
+  linkText: {
+    color: '#2563eb',
+    textAlign: 'center',
+    fontWeight: '600'
+  }
+});

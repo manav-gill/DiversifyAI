@@ -8,35 +8,70 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session token and user data on app load
+    let isMounted = true;
+    
+    // Fallback timeout: if SecureStore hangs forever natively (known bug), force loading false
+    const timeoutId = setTimeout(() => {
+      if (isMounted && loading) {
+        console.warn("[AuthContext] SecureStore timeout! Forcing loading to false.");
+        setLoading(false);
+      }
+    }, 3000);
+
     const loadSession = async () => {
       try {
+        console.log("[AuthContext] Checking for session tokens in SecureStore...");
         const token = await SecureStore.getItemAsync('token');
         const userData = await SecureStore.getItemAsync('user');
         
-        if (token && userData) {
+        console.log(`[AuthContext] Session checked. Token exists: ${!!token}, User exists: ${!!userData}`);
+        
+        if (token && userData && isMounted) {
           setUser(JSON.parse(userData));
         }
       } catch (e) {
-        console.error('Failed to load session:', e);
+        console.error('[AuthContext] Failed to load session:', e);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          console.log("[AuthContext] Setting loading to false");
+          setLoading(false);
+          clearTimeout(timeoutId);
+        }
       }
     };
 
     loadSession();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const login = async (token, userData) => {
-    await SecureStore.setItemAsync('token', token);
-    await SecureStore.setItemAsync('user', JSON.stringify(userData));
-    setUser(userData);
+    console.log("[AuthContext] Saving login credentials...");
+    try {
+      await SecureStore.setItemAsync('token', token);
+      await SecureStore.setItemAsync('user', JSON.stringify(userData));
+      setUser(userData);
+      console.log("[AuthContext] Login state updated successfully");
+    } catch (error) {
+       console.error("[AuthContext] Error storing login credentials:", error);
+       // We still update local state even if storage fails so the app can be used
+       setUser(userData);
+    }
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync('token');
-    await SecureStore.deleteItemAsync('user');
-    setUser(null);
+    console.log("[AuthContext] Logging out...");
+    try {
+      await SecureStore.deleteItemAsync('token');
+      await SecureStore.deleteItemAsync('user');
+    } catch (error) {
+      console.error("[AuthContext] Error removing credentials:", error);
+    } finally {
+      setUser(null);
+    }
   };
 
   return (
