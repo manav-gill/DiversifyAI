@@ -1,5 +1,7 @@
+import 'react-native-gesture-handler';
 import React, { useContext } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthContext, AuthProvider } from './src/context/AuthContext';
@@ -41,8 +43,10 @@ const Navigation = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Navigation />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <Navigation />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
