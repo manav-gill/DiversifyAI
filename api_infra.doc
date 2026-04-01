@@ -481,7 +481,17 @@ GET /api/chat/client/rooms
 - Chat API client uses /chat base from VITE_API_BASE_URL.
 
 --------------------------------------------------------------------------------
-8) Environment Variables (Backend)
+8) Mobile App API Usage Notes
+--------------------------------------------------------------------------------
+
+- Mobile app stores:
+	- expo-secure-store token key: token
+	- expo-secure-store user key: user
+- Axios request interceptor injects Authorization header automatically when token exists.
+- API_BASE_URL is defined in `api.js` (default: http://localhost:5000/api, must use local IP for physical devices).
+
+--------------------------------------------------------------------------------
+9) Environment Variables (Backend)
 --------------------------------------------------------------------------------
 
 Required for full functionality:
@@ -497,7 +507,7 @@ Required for full functionality:
 - RAZORPAY_KEY_SECRET
 
 --------------------------------------------------------------------------------
-9) Key Functional Behaviors Summary
+10) Key Functional Behaviors Summary
 ----------------------------------------
 ----------------------------------------
 
