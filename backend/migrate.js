@@ -1,7 +1,6 @@
 const mongoose = require('mongoose');
 require('dotenv').config();
-const { default: YahooFinance } = require('yahoo-finance2');
-const yahooFinance = new YahooFinance();
+const yahooFinance = require('yahoo-finance2').default;
 
 mongoose.connect(process.env.MONGODB_URL).then(async () => {
    const Portfolio = require('./models/Portfolio');

@@ -1,7 +1,6 @@
 // backend/jobs/cronJobs.js
 const cron = require('node-cron');
-const { default: YahooFinance } = require('yahoo-finance2');
-const yahooFinance = new YahooFinance();
+const yahooFinance = require('yahoo-finance2').default;
 const Portfolio = require('../models/Portfolio'); // Make sure path is right
 
 // CRON logic to run everyday at Midnight

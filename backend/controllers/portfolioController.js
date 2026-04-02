@@ -1,6 +1,5 @@
 const Portfolio = require('../models/Portfolio');
-const { default: YahooFinance } = require('yahoo-finance2');
-const yahooFinance = new YahooFinance();
+const yahooFinance = require('yahoo-finance2').default;
 
 const PRICE_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
