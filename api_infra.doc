@@ -65,6 +65,7 @@ POST /api/auth/login
 - Purpose: Login for client/advisor/admin.
 - Body:
 	{
+		
 		"email": "madhav@gmail.com",
 		"password": "123456"
 	}
