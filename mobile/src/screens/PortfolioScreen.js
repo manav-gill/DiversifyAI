@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,73 +6,110 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
+  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import HoldingCard from '../components/HoldingCard';
+import { addStock, getPortfolio } from '../services/portfolioService';
 
-const initialHoldings = [
-  {
-    id: 'h1',
-    symbol: 'RELIANCE',
-    quantity: 110,
-    buyPrice: 2520,
-    currentValue: 304150,
-    sector: 'Energy',
-  },
-  {
-    id: 'h2',
-    symbol: 'HDFCBANK',
-    quantity: 180,
-    buyPrice: 1585,
-    currentValue: 311220,
-    sector: 'Banking',
-  },
-  {
-    id: 'h3',
-    symbol: 'TCS',
-    quantity: 70,
-    buyPrice: 3640,
-    currentValue: 272440,
-    sector: 'IT',
-  },
-  {
-    id: 'h4',
-    symbol: 'SUNPHARMA',
-    quantity: 120,
-    buyPrice: 1410,
-    currentValue: 179880,
-    sector: 'Pharma',
-  },
-];
+function formatCurrency(value) {
+  return '₹' + Number(value || 0).toLocaleString('en-IN');
+}
+
+function normalizeHolding(item, index) {
+  const symbol = item?.symbol || item?.stockSymbol || item?.name || 'N/A';
+  const quantity = Number(item?.quantity) || 0;
+  const buyPrice = Number(item?.buyPrice || item?.purchasePrice || item?.avgBuyPrice) || 0;
+  const currentValue = Number(item?.currentValue || item?.totalValue || item?.marketValue) || 0;
+
+  return {
+    id: String(item?._id || item?.id || symbol + '-' + index),
+    symbol,
+    quantity,
+    buyPrice,
+    currentValue,
+    sector: item?.sector || 'Unassigned',
+  };
+}
 
 export default function PortfolioScreen() {
-  const [stockQuery, setStockQuery] = useState('');
+  const [holdings, setHoldings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stockSymbol, setStockSymbol] = useState('');
   const [quantity, setQuantity] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
-  const [holdings, setHoldings] = useState(initialHoldings);
+  const [totalInvestment, setTotalInvestment] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleAddStock = () => {
-    const trimmedSymbol = stockQuery.trim().toUpperCase();
+  const fetchPortfolioData = useCallback(async () => {
+    setLoading(true);
+
+    try {
+      const data = await getPortfolio();
+      const rawHoldings = Array.isArray(data)
+        ? data
+        : data?.stocks || data?.holdings || [];
+
+      const normalizedHoldings = rawHoldings.map(normalizeHolding);
+      setHoldings(normalizedHoldings);
+
+      if (typeof data?.totalInvestment === 'number') {
+        setTotalInvestment(data.totalInvestment);
+      } else {
+        const computedTotal = normalizedHoldings.reduce(
+          (sum, item) => sum + item.buyPrice * item.quantity,
+          0
+        );
+        setTotalInvestment(computedTotal);
+      }
+    } catch (error) {
+      console.error(
+        'Failed to fetch portfolio:',
+        error.response?.data?.message || error.message
+      );
+      setHoldings([]);
+      setTotalInvestment(0);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPortfolioData();
+  }, [fetchPortfolioData]);
+
+  const handleAddStock = async () => {
+    const trimmedSymbol = stockSymbol.trim().toUpperCase();
     const parsedQuantity = Number(quantity);
     const parsedBuyPrice = Number(buyPrice);
 
-    if (!trimmedSymbol || !parsedQuantity || !parsedBuyPrice) {
+    if (!trimmedSymbol || parsedQuantity <= 0 || parsedBuyPrice <= 0) {
+      console.error('Invalid stock input values');
       return;
     }
 
-    const newHolding = {
-      id: Date.now().toString(),
-      symbol: trimmedSymbol,
-      quantity: parsedQuantity,
-      buyPrice: parsedBuyPrice,
-      currentValue: Math.round(parsedQuantity * parsedBuyPrice * 1.06),
-      sector: 'Unassigned',
-    };
+    setSubmitting(true);
 
-    setHoldings((prev) => [newHolding, ...prev]);
-    setStockQuery('');
-    setQuantity('');
-    setBuyPrice('');
+    try {
+      await addStock({
+        stockSymbol: trimmedSymbol,
+        quantity: parsedQuantity,
+        buyPrice: parsedBuyPrice,
+      });
+
+      setStockSymbol('');
+      setQuantity('');
+      setBuyPrice('');
+
+      await fetchPortfolioData();
+    } catch (error) {
+      console.error(
+        'Failed to add stock:',
+        error.response?.data?.message || error.message
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDeleteStock = (id) => {
@@ -99,8 +136,8 @@ export default function PortfolioScreen() {
           style={styles.input}
           placeholder="Search Stock (e.g. RELI)"
           placeholderTextColor="#94A3B8"
-          value={stockQuery}
-          onChangeText={setStockQuery}
+          value={stockSymbol}
+          onChangeText={setStockSymbol}
           autoCapitalize="characters"
         />
 
@@ -122,27 +159,42 @@ export default function PortfolioScreen() {
           keyboardType="numeric"
         />
 
-        <TouchableOpacity style={styles.addButton} onPress={handleAddStock}>
-          <Text style={styles.addButtonText}>Add Stock</Text>
+        <TouchableOpacity
+          style={[styles.addButton, submitting && styles.addButtonDisabled]}
+          onPress={handleAddStock}
+          disabled={submitting}
+        >
+          <Text style={styles.addButtonText}>
+            {submitting ? 'Adding...' : 'Add Stock'}
+          </Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.holdingsSection}>
         <Text style={styles.sectionTitle}>Current Holdings</Text>
-        <Text style={styles.holdingsSubtitle}>Total Investment: ₹2,900,806</Text>
+        <Text style={styles.holdingsSubtitle}>
+          Total Investment: {formatCurrency(totalInvestment)}
+        </Text>
 
-        <FlatList
-          data={holdings}
-          keyExtractor={(item) => item.id}
-          renderItem={renderHoldingItem}
-          scrollEnabled={false}
-          contentContainerStyle={styles.listContent}
-          ListEmptyComponent={
-            <View style={styles.emptyStateCard}>
-              <Text style={styles.emptyStateText}>No holdings added yet.</Text>
-            </View>
-          }
-        />
+        {loading ? (
+          <View style={styles.loadingState}>
+            <ActivityIndicator size="large" color="#00C896" />
+            <Text style={styles.loadingText}>Loading holdings...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={holdings}
+            keyExtractor={(item) => item.id}
+            renderItem={renderHoldingItem}
+            scrollEnabled={false}
+            contentContainerStyle={styles.listContent}
+            ListEmptyComponent={
+              <View style={styles.emptyStateCard}>
+                <Text style={styles.emptyStateText}>No holdings yet</Text>
+              </View>
+            }
+          />
+        )}
       </View>
     </ScrollView>
   );
@@ -215,6 +267,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  addButtonDisabled: {
+    opacity: 0.65,
+  },
   addButtonText: {
     fontSize: 15,
     fontWeight: '700',
@@ -232,6 +287,21 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 6,
+  },
+  loadingState: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E8EEF4',
+    paddingVertical: 22,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
   },
   emptyStateCard: {
     backgroundColor: '#FFFFFF',
