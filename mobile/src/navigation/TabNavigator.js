@@ -18,7 +18,7 @@ const iconByRoute = {
   Profile: 'person',
 };
 
-export default function TabNavigator() {
+export default function TabNavigator({ onLogout }) {
   return (
     <Tab.Navigator
       initialRouteName="Dashboard"
@@ -37,7 +37,9 @@ export default function TabNavigator() {
       <Tab.Screen name="Portfolio" component={PortfolioScreen} />
       <Tab.Screen name="Analysis" component={AnalysisScreen} />
       <Tab.Screen name="Advisors" component={AdvisorsScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile">
+        {(props) => <ProfileScreen {...props} onLogout={onLogout} />}
+      </Tab.Screen>
     </Tab.Navigator>
   );
 }

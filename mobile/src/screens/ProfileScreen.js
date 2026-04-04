@@ -15,9 +15,13 @@ const accountOptions = [
   { id: 'o4', label: 'Help & Support', icon: 'help-circle-outline' },
 ];
 
-export default function ProfileScreen() {
-  const handleLogout = () => {
+export default function ProfileScreen({ onLogout }) {
+  const handleLogout = async () => {
     console.log('User logged out');
+
+    if (typeof onLogout === 'function') {
+      await onLogout();
+    }
   };
 
   return (
