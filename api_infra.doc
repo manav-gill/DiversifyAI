@@ -51,6 +51,7 @@ POST /api/auth/register
 	- Creates user with role = client.
 - Response:
 	{
+		
 		"token": "jwt_token",
 		"user": {
 			"id": "...",
