@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   ScrollView,
@@ -7,6 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import AdvisorCard from '../components/AdvisorCard';
+import apiClient from '../services/api';
 
 const stats = [
   { id: 's1', title: 'Available Consultants', value: '24' },
@@ -14,46 +16,35 @@ const stats = [
   { id: 's3', title: 'Response Time', value: '~ 18 min' },
 ];
 
-const advisors = [
-  {
-    id: 'a1',
-    name: 'Rahul Sharma',
-    specialization: 'Equity Investment',
-    rating: 4.9,
-    experience: 12,
-    clients: 340,
-    languages: 'English, Hindi',
-  },
-  {
-    id: 'a2',
-    name: 'Neha Gupta',
-    specialization: 'Portfolio Management',
-    rating: 4.8,
-    experience: 9,
-    clients: 280,
-    languages: 'English, Hindi',
-  },
-  {
-    id: 'a3',
-    name: 'Arjun Mehta',
-    specialization: 'Risk & Asset Allocation',
-    rating: 4.7,
-    experience: 11,
-    clients: 310,
-    languages: 'English, Hindi, Gujarati',
-  },
-  {
-    id: 'a4',
-    name: 'Sneha Kapoor',
-    specialization: 'Long-Term Wealth Planning',
-    rating: 4.9,
-    experience: 10,
-    clients: 295,
-    languages: 'English, Hindi, Punjabi',
-  },
-];
-
 export default function AdvisorsScreen() {
+  const [advisors, setAdvisors] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAdvisors = async () => {
+      try {
+        const response = await apiClient.get('/auth/advisors');
+        if (response.data && response.data.advisors) {
+          const apiAdvisors = response.data.advisors.map(adv => ({
+            id: adv._id,
+            name: adv.name,
+            specialization: 'Financial Advisor',
+            rating: 4.8,
+            experience: 5,
+            clients: 150,
+            languages: 'English, Hindi',
+          }));
+          setAdvisors(apiAdvisors);
+        }
+      } catch (error) {
+        console.error('Failed to fetch advisors:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAdvisors();
+  }, []);
+
   const handleBookNow = () => {
     console.log('Booking advisor');
   };
@@ -85,13 +76,17 @@ export default function AdvisorsScreen() {
       </ScrollView>
 
       <View style={styles.listSection}>
-        <FlatList
-          data={advisors}
-          keyExtractor={(item) => item.id}
-          renderItem={renderAdvisor}
-          scrollEnabled={false}
-          contentContainerStyle={styles.listContent}
-        />
+        {loading ? (
+          <ActivityIndicator size="large" color="#00C896" style={{ marginTop: 20 }} />
+        ) : (
+          <FlatList
+            data={advisors}
+            keyExtractor={(item) => item.id}
+            renderItem={renderAdvisor}
+            scrollEnabled={false}
+            contentContainerStyle={styles.listContent}
+          />
+        )}
       </View>
     </ScrollView>
   );

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-const API_PORT = 5000;
+const API_PORT = 5002;
 const API_PREFIX = '/api';
 const API_TIMEOUT = 5000;
 const EXPO_PUBLIC_API_HOST = process.env.EXPO_PUBLIC_API_HOST;

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   ScrollView,
@@ -7,6 +8,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const accountOptions = [
   { id: 'o1', label: 'Edit Profile', icon: 'person-outline' },
@@ -16,6 +18,25 @@ const accountOptions = [
 ];
 
 export default function ProfileScreen({ onLogout }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem('@diversify_ai_user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      } catch (error) {
+        console.error('Failed to load user info:', error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadUser();
+  }, []);
+
   const handleLogout = async () => {
     console.log('User logged out');
 
@@ -28,11 +49,21 @@ export default function ProfileScreen({ onLogout }) {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View>
         <View style={styles.userCard}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>MG</Text>
-          </View>
-          <Text style={styles.userName}>Madhav Gill</Text>
-          <Text style={styles.userEmail}>madhav@gmail.com</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color="#00C896" />
+          ) : user ? (
+            <>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {user.name ? user.name.substring(0, 2).toUpperCase() : 'U'}
+                </Text>
+              </View>
+              <Text style={styles.userName}>{user.name}</Text>
+              <Text style={styles.userEmail}>{user.email}</Text>
+            </>
+          ) : (
+            <Text style={styles.userName}>Profile not found</Text>
+          )}
         </View>
 
         <View style={styles.optionsCard}>

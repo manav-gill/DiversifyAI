@@ -9,6 +9,7 @@ import AuthNavigator from './src/navigation/AuthNavigator';
 import { clearAuthToken, setAuthToken } from './src/services/api';
 
 const TOKEN_STORAGE_KEY = '@diversify_ai_auth_token';
+const USER_STORAGE_KEY = '@diversify_ai_user';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -33,9 +34,12 @@ export default function App() {
     initializeAuth();
   }, []);
 
-  const handleLoginSuccess = async (token) => {
+  const handleLoginSuccess = async (token, user) => {
     try {
       await AsyncStorage.setItem(TOKEN_STORAGE_KEY, token);
+      if (user) {
+        await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      }
       setAuthToken(token);
       setIsAuthenticated(true);
     } catch (error) {
@@ -46,6 +50,7 @@ export default function App() {
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem(TOKEN_STORAGE_KEY);
+      await AsyncStorage.removeItem(USER_STORAGE_KEY);
     } catch (error) {
       console.error('Failed to remove auth token:', error.message);
     } finally {

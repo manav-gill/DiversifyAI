@@ -33,13 +33,14 @@ export default function LoginScreen({ navigation, onLoginSuccess }) {
       });
 
       const token = response.data?.token;
+      const user = response.data?.user;
 
       if (!token) {
         throw new Error('Token not received from server');
       }
 
       if (typeof onLoginSuccess === 'function') {
-        await onLoginSuccess(token);
+        await onLoginSuccess(token, user);
       }
     } catch (apiError) {
       const message =
