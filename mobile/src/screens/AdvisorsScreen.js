@@ -6,9 +6,13 @@ import {
   ScrollView,
   FlatList,
   StyleSheet,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import AdvisorCard from '../components/AdvisorCard';
+import { createPaymentOrder, verifyPayment } from '../services/api';
 import apiClient from '../services/api';
+import RazorpayCheckout from '../components/RazorpayCheckout';
 
 const stats = [
   { id: 's1', title: 'Available Consultants', value: '24' },
@@ -16,9 +20,13 @@ const stats = [
   { id: 's3', title: 'Response Time', value: '~ 18 min' },
 ];
 
-export default function AdvisorsScreen() {
+export default function AdvisorsScreen({ navigation }) {
   const [advisors, setAdvisors] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [isPaying, setIsPaying] = useState(false);
+  const [paymentOptions, setPaymentOptions] = useState(null);
+  const [activeAdvisor, setActiveAdvisor] = useState(null);
 
   useEffect(() => {
     const fetchAdvisors = async () => {
@@ -45,16 +53,92 @@ export default function AdvisorsScreen() {
     fetchAdvisors();
   }, []);
 
-  const handleBookNow = () => {
-    console.log('Booking advisor');
+  const handleBookNow = async (advisor) => {
+    if (isPaying) return;
+
+    setIsPaying(true);
+    setActiveAdvisor(advisor);
+
+    try {
+      const storedUser = await AsyncStorage.getItem('@diversify_ai_user');
+      const user = storedUser ? JSON.parse(storedUser) : {};
+      
+      const fee = 2000;
+      const order = await createPaymentOrder(fee, advisor.id);
+
+      const options = {
+        key: 'rzp_test_SSO6uIJoVyM7lM', 
+        amount: order?.order?.amount || order?.amount,
+        currency: order?.order?.currency || order?.currency || 'INR',
+        name: 'DiversifyAI',
+        description: 'Consultation Fee',
+        order_id: order?.order?.id || order?.id,
+        prefill: {
+          name: user.name || 'User',
+          email: user.email || 'user@email.com',
+        },
+        theme: {
+          color: '#00C896',
+        },
+      };
+
+      setPaymentOptions(options);
+
+    } catch (error) {
+      console.error('Payment intent failed:', error);
+      Alert.alert('Error', 'Could not initiate payment. Please try again.');
+      setIsPaying(false);
+      setActiveAdvisor(null);
+    }
+  };
+
+  const handlePaymentSuccess = async (response) => {
+    try {
+      setPaymentOptions(null); 
+
+      const verifyResponse = await verifyPayment({
+        ...response,
+        advisorId: activeAdvisor.id,
+      });
+
+      const unlockedChatId = verifyResponse?.chatId;
+
+      if (unlockedChatId) {
+        navigation.navigate('Chat', { 
+          chatId: unlockedChatId, 
+          advisorName: activeAdvisor.name 
+        });
+      } else {
+        Alert.alert(
+          'Payment Successful!',
+          `Your consultation with ${activeAdvisor.name} is booked.`
+        );
+      }
+    } catch (error) {
+      console.error('Verification failed:', error);
+      Alert.alert('Payment Error', 'Payment verification failed. Please contact support.');
+    } finally {
+      setIsPaying(false);
+      setActiveAdvisor(null);
+    }
+  };
+
+  const handlePaymentCancel = (error) => {
+    setPaymentOptions(null);
+    setIsPaying(false);
+    setActiveAdvisor(null);
+    if (error && error.description) {
+       Alert.alert('Payment Failed', error.description);
+    }
   };
 
   const renderAdvisor = ({ item }) => (
-    <AdvisorCard advisor={item} onBook={handleBookNow} />
+    <AdvisorCard advisor={item} onBook={() => handleBookNow(item)} />
   );
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <>
+      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.headerSection}>
         <Text style={styles.title}>Advisor Connect</Text>
         <Text style={styles.subtitle}>
@@ -89,6 +173,14 @@ export default function AdvisorsScreen() {
         )}
       </View>
     </ScrollView>
+    {paymentOptions && (
+      <RazorpayCheckout 
+        options={paymentOptions} 
+        onSuccess={handlePaymentSuccess} 
+        onCancel={handlePaymentCancel} 
+      />
+    )}
+  </>
   );
 }
 

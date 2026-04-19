@@ -120,4 +120,24 @@ apiClient.interceptors.response.use(
   }
 );
 
+export const createPaymentOrder = async (amount, advisorId) => {
+  const response = await apiClient.post('/payment/create-order', { amount, advisorId });
+  return response.data;
+};
+
+export const verifyPayment = async (paymentData) => {
+  const response = await apiClient.post('/payment/verify', paymentData);
+  return response.data;
+};
+
+export const getChatMessages = async (chatId) => {
+  const response = await apiClient.get(`/chat/messages/${chatId}`);
+  return response.data;
+};
+
+export const sendChatMessage = async (chatId, message) => {
+  const response = await apiClient.post('/chat/send', { chatId, message });
+  return response.data;
+};
+
 export default apiClient;
